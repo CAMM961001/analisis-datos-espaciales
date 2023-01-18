@@ -19,16 +19,10 @@ library(R.utils)
 #Descarga los archivos espaciales y colocalos en una carpeta de tu computadora
 #Liga al shapefile: https://www.dropbox.com/sh/auep5kzqt4x0o1b/AABm4OxGu9jBd5oiG3rPZF71a?dl=0
 
-#Cambio el directorio
-setwd("~/Downloads/Datos_Espaciales")
-
 
 #######################################################################################
 #############          COMPONENTES DE UN SHAPEFILE      ###############################
 #######################################################################################
-
-#Leemos los archivos del shapefile en el conjunto Alcaldias
-setwd("~/Downloads/Datos_Espaciales/Alcaldias")
 
 #4 archivos que componen el shapefile
 list.files()
@@ -36,7 +30,7 @@ list.files()
 ########################################################################
 #DBF: parte tabular
 #Analizamos el .dbf
-edos <- read.dbf("alcaldias.dbf") %>% data.frame()
+edos <- read.dbf("datos/alcaldias/alcaldias.dbf") %>% data.frame()
 View(edos)
 
 #Revisamos el tipo de datos de cada variable de la base
@@ -67,7 +61,7 @@ select(edos,lavadora) %>% unlist() %>% min()
 ########################################################################
 #SHP
 #Esta instrucción nos permite ver todas las capas que tiene nuestro archivo (hay shapefiles que tienen más de una capa)
-ogrListLayers("alcaldias.shp")
+ogrListLayers("./datos/alcaldias/alcaldias.shp")
 
 #En nuestro caso, solo tenemos una capa llamada "estados"
 # [1] "alcaldias"
@@ -78,7 +72,7 @@ ogrListLayers("alcaldias.shp")
 
 #Cargamos el shapefile en R
 #La funcion recibe 2 atributos: el nombre del .shp que queremos llamar y el nombre de la capa (comando ogrListLayers)
-shape=readOGR("alcaldias.shp", layer="alcaldias")
+shape=readOGR("./datos/alcaldias/alcaldias.shp", layer="alcaldias")
 
 #El archivo contiene información sobre 32 registros y 2 variables
 # with 16 features - son 16 alcaldias
