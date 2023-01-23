@@ -144,6 +144,7 @@ for (idx in seq(nrow(poly_df))){
 poly_df$flag <- flag
 poly_df
 ```
+
 Una vez que se tiene la columna de conteo, entonces se puede obtener la suma para evaluar el criterio de inpolygon:
 
 -   Si en la suma resulta en par, entonces el punto está fuera del polígono
