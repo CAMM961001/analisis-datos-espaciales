@@ -4,6 +4,8 @@ format: pdf
 editor: visual
 ---
 
+## Lógica del algoritmo
+
 Implementación de la función inpolygon para determinar si un punto dado está dentro de un polígono o está fuera.
 
 ```{r}
@@ -151,7 +153,106 @@ Una vez que se tiene la columna de conteo, entonces se puede obtener la suma par
 -   Si es impar, entonces está dentro
 
 ```{r}
-(sum(poly_df$flag) %% 2) == 0
+(sum(poly_df$flag) %% 2) != 0
 ```
 
-En este caso, al evaluar si el residuo de la suma cuando se divide entre 2 es igual a cero, el resultado fue falso, lo cual indica que el número de cruces es impar y por tanto, el punto de interés se encuentra dentro del polígono.
+En este caso, al evaluar si el residuo de la suma cuando se divide entre 2 es diferente de cero, el resultado fue verdadero, lo cual indica que el número de cruces es impar y por tanto, el punto de interés se encuentra dentro del polígono.
+
+## Todo junto
+
+Al incorporar el razonamiento anterior, se puede proponer la siguiente función:
+
+```{r}
+crear_recta <- function(X, Y){
+  mu <- (Y[2]-Y[1])/(X[2]-X[1])
+  b0 <- Y[1] - X[1]*(Y[2]-Y[1])/(X[2]-X[1])
+  
+  return(c(mu, b0))
+}
+
+#Función inpolygon
+inpolygon <- function(x_utm, y_utm, D_x , D_y){
+  #Construcción del DataFrame
+  polygon = data.frame(D_x, D_y)
+  
+  #Se generan puntos de referencia
+  point = c(x_utm, y_utm)
+  referencia = c(max(polygon$D_x)*1.25, point[2])
+  lin_ref <- crear_recta(c(point[1], referencia[1]), c(point[2], referencia[2]))
+  
+  #DataFrame para aristas del polígono
+  poly_df <- data.frame(matrix(ncol = 6, nrow = 0))
+  colnames(poly_df) <- c("x1","x2","y1","y2","mu","b")
+  
+  #Ciclo para obtener pares de coordenadas y parámetros de una recta
+  for (idx in seq(nrow(polygon))){
+    
+    if (idx != nrow(polygon)){
+      coords = c(polygon$D_x[idx],
+                 polygon$D_x[idx+1],
+                 polygon$D_y[idx],
+                 polygon$D_y[idx+1])
+    }
+    else {
+      coords = c(polygon$D_x[idx],
+                 polygon$D_x[1],
+                 polygon$D_y[idx],
+                 polygon$D_y[1])
+    }
+    
+    recta = crear_recta(coords[c(1,2)], coords[c(3,4)])
+    nuevo_registro = c(coords, recta)
+    
+    poly_df[idx,] <- nuevo_registro
+    }
+  
+  #Obtener punto de intersección de cada arista con lin_ref
+  poly_df <- poly_df %>% mutate(x_inter = (lin_ref[2] - b)/(mu))
+  
+  #Ciclo para evaluar si la intersección está en rangos de validación
+  flag <- c()
+  for (idx in seq(nrow(poly_df))){
+    x_min = min(c(poly_df$x1[idx], poly_df$x2[idx]))
+    x_max = max(c(poly_df$x1[idx], poly_df$x2[idx]))
+    
+    en_rango = (x_min < poly_df$x_inter[idx]) & (poly_df$x_inter[idx] < x_max)
+    
+    en_rango_ref = (point[1] < poly_df$x_inter[idx]) & (poly_df$x_inter[idx] < referencia[1])
+    
+    flag_idx = en_rango * en_rango_ref
+    
+    flag <- c(flag, flag_idx)
+  }
+  
+  poly_df$flag <- flag
+  
+  #Criterio inpolygon
+  return((sum(poly_df$flag) %% 2) != 0)
+}
+
+```
+
+Ahora probamos la función con un punto que sepamos que está dentro del polígono, por ejemplo el que se utilizó para el desarrollo
+
+```{r}
+D_x <- c(1,2,3,2.5,1.5)
+D_y <- c(2,3,2,1,1)
+x_utm <- 2.25
+y_utm <- 1.5
+
+inpolygon(x_utm = x_utm, y_utm = y_utm, D_x = D_x, D_y = D_y)
+
+```
+
+Ahora se prueba un punto que sepamos que se encuentra fuera del polígono, por ejemplo el $(1, 2.5)$
+
+```{r}
+D_x <- c(1,2,3,2.5,1.5)
+D_y <- c(2,3,2,1,1)
+x_utm <- 1
+y_utm <- 2.5
+
+inpolygon(x_utm = x_utm, y_utm = y_utm, D_x = D_x, D_y = D_y)
+```
+
+Se puede observar que para el polígono utilizado, se satisfacen los requerimientos de una función `inpolygon`
