@@ -18,13 +18,13 @@ library(R.utils)
 library(geosphere)
 
 #Cambio el directorio
-setwd("~/Downloads/Datos_Espaciales/Alcaldias")
+#setwd("~/Downloads/Datos_Espaciales/Alcaldias")
 
 
 #Para los ejemplos de esta clase necesitamos crear un conjunto de puntos en coordenadas geográficas y otro en UTM Mercator
 
 #Leemos el shapefile de alcaldias de la clase 2
-shape=readOGR("alcaldias.shp", layer="alcaldias")
+shape=readOGR("./datos/alcaldias/alcaldias.shp", layer="alcaldias")
 
 #Matriz de coordenadas geográficas con latitud y longitud
 coords <- data.frame(longitud = shape@polygons[[1]]@Polygons[[1]]@coords[,1],latitud = shape@polygons[[1]]@Polygons[[1]]@coords[,2])
@@ -51,9 +51,6 @@ colnames(UTM) <- c("lon_UTM","lat_UTM")
 ########################################################################
 ########################################################################
 #Distancias
-
-#Distancia de Haversine
-library(geosphere)#Nuevo paquete para la distancia de Haversine
 
 #Distancia entre 2 puntos en coordenadas geográficas 
 #distHaversine(punto1, punto2, r=6378137)
@@ -165,11 +162,11 @@ mean(mat[,1]) #Parece insignificante pero siempre hay que considerarlo
 #Marco Geoestadístico Nacional
 
 #Descarga los datos para Chihuahua: https://www.dropbox.com/s/vt477y1c2aidn7l/08_chihuahua.zip?dl=1
-setwd("~/Downloads/08_chihuahua/conjunto_de_datos")
+#setwd("~/Downloads/08_chihuahua/conjunto_de_datos")
 
 
 #Cargamos los datos sobre las manzanas de Chihuahua
-shape=readOGR("08m.shp", layer="08m")
+shape=readOGR("./datos/08_chihuahua/conjunto_de_datos/08m.shp", layer="08m")
 
 #El shapefile tiene informacion sobre 111,956 manzanas
 length(shape)
