@@ -5,3 +5,5 @@
 *.shp
 *.shx
 .Rhistory
+datos/
+
