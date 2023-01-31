@@ -1,0 +1,134 @@
+---
+title: "Tarea"
+author: "Juan y Miguel"
+format: pdf
+editor: visual
+---
+
+Carga de librerías
+
+```{r}
+library(sf)
+library(dplyr)
+```
+
+Se enlistan los archivos shape
+
+```{r}
+path <- paste0(getwd(), "/../datos/Marco_geoestadistico/Manzanas/")
+
+lista_shapes_a <- paste0("0", sprintf("%d", 1:9), "m.shp")
+lista_shapes_b <- paste0(sprintf("%d", 10:32), "m.shp")
+lista_shapes <- c(lista_shapes_a, lista_shapes_b)
+lista_shapes <- paste0(path, lista_shapes)
+
+lista_shapes[30]
+```
+
+## Analizando un estado
+
+Ahora se hace el procedimiento para un estado particular, por ejemplo, Veracruz
+
+```{r}
+# Leectura de datos
+veracruz <- st_read(lista_shapes[30])
+
+# Transformación lat-lon
+veracruz_latlon <- st_transform(veracruz, "+proj=longlat +ellps=WGS84 +datum=WGS84", crs = 4326)
+veracruz_utm <- st_transform(veracruz, "+proj=utm +ellps=WGS84 +datum=WGS84", crs = 4326)
+```
+
+```{r}
+# Extraemos las coordenadas de cada punto de los poligonos que forman veracruz
+coordenadas_latlon <- st_coordinates(veracruz_latlon) %>%
+  as_tibble() %>%
+  group_by(L2) %>%
+  summarise(mean_lon=mean(X),
+            mean_lat=mean(Y))
+```
+
+```{r}
+coordenadas_utm <- st_coordinates(veracruz_utm) %>%
+  as_tibble() %>%
+  group_by(L2) %>%
+  summarise(mean_x=mean(X),
+            mean_y=mean(Y))
+
+```
+
+```{r}
+### Pegamos las coordenadas en el archivo orignal
+veracruz$Mean_lon <- coordenadas_latlon$mean_lon
+veracruz$Mean_lat <- coordenadas_latlon$mean_lat
+veracruz$Mean_x <- coordenadas_utm$mean_x
+veracruz$Mean_y <- coordenadas_utm$mean_y
+```
+
+```{r}
+
+manzanas<-veracruz %>%
+  group_by(CVE_MZA) %>%
+  summarise(centroide_lat=mean(Mean_lat),
+            centroide_lon=mean(Mean_lon),
+            centroide_x=mean(Mean_x),
+            centroide_y=mean(Mean_y))
+
+manzanas %>% write.csv("Manzanas_veracruz.csv")
+
+head(manzanas)
+
+```
+
+## Juntando todos en una función
+
+```{r}
+obtener_centroide <- function(file){
+  # Leectura de datos
+  estado <- st_read(lista_shapes[30])
+  
+  # Transformación lat-lon
+  estado_latlon <- st_transform(estado, "+proj=longlat +ellps=WGS84 +datum=WGS84", crs = 4326)
+  
+  # Transformación utm
+  estado_utm <- st_transform(estado, "+proj=utm +ellps=WGS84 +datum=WGS84", crs = 4326)
+  
+  # Extraemos las coordenadas de cada punto de los poligonos que forman estado
+  coordenadas_latlon <- st_coordinates(estado_latlon) %>%
+    as_tibble() %>%
+    group_by(L2) %>%
+    summarise(mean_lon=mean(X),
+              mean_lat=mean(Y))
+  
+  coordenadas_utm <- st_coordinates(estado_utm) %>%
+    as_tibble() %>%
+    group_by(L2) %>%
+    summarise(mean_x=mean(X),
+              mean_y=mean(Y))
+  
+  ### Pegamos las coordenadas en el archivo orignal
+  estado$Mean_lon <- coordenadas_latlon$mean_lon
+  estado$Mean_lat <- coordenadas_latlon$mean_lat
+  estado$Mean_x <- coordenadas_utm$mean_x
+  estado$Mean_y <- coordenadas_utm$mean_y
+  
+  manzanas<-estado %>%
+    group_by(CVE_MZA) %>%
+    summarise(centroide_lat=mean(Mean_lat),
+              centroide_lon=mean(Mean_lon),
+              centroide_x=mean(Mean_x),
+              centroide_y=mean(Mean_y))
+  
+  return(manzanas)
+
+}
+```
+
+Probamos la función con el archivo shape de Veracruz, es decir, el 30:
+
+```{r}
+veracruz <- obtener_centroide(lista_shapes[30])
+
+head(veracruz)
+```
+
+
