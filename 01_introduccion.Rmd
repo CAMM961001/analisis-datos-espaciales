@@ -1,0 +1,299 @@
+---
+title: "01_introduccion"
+output: html_document
+date: "2023-02-13"
+---
+
+Carga de librerías
+
+```{r, echo=FALSE}
+library(foreign)
+library(tidyverse)
+library(lubridate)
+library(readr)
+library(sp)
+library(rgdal)
+library(pracma)
+library(aws.s3)
+library(R.utils)
+```
+
+## Componentes de un shape file
+
+Primero se van a analizar los componentes de un *shape file*. Estos arhivos son archivos geométricos que se pueden identificar con la extensión de archivo `*.shp` como uno de los principales componentes. En general, un archivo de datos espaciales se compone por **cuatro** archivos:
+
+-   `*.dbf`: Componente tabular de los datos
+-   `*.prj`
+-   `*.shp`
+-   `*.shx`
+
+**Archivo .dbf**
+
+```{r}
+file_dbf <- paste0(getwd(), '/datos/Alcaldias/alcaldias.dbf')
+
+edos <- read.dbf(file_dbf) |>
+  data.frame()
+
+str(edos)
+```
+
+Se puede trabajar en un resumen de los datos:
+
+```{r}
+summary(edos)
+```
+
+Se puede leer la tabla asociada al *shape file* y hacer operaciones con tidyverse para otro tipo de resumen en los datos:
+
+Número promedio de radios por alcaldia:
+
+```{r}
+med <- select(edos, radio) |>
+  unlist() |>
+  mean()
+
+med
+```
+
+Estados con más radios que la media por alcaldia:
+
+```{r}
+filter(edos, radio > med) |>
+  select(nomgeo)
+```
+
+Número de autos de la alcaldía con más autos:
+
+```{r}
+select(edos, radio) |>
+  unlist() |>
+  max()
+```
+
+Número de lavadoras de la alcaldía con menos lavadoras:
+
+```{r}
+select(edos,lavadora) |>
+  unlist() |>
+  min()
+```
+
+**Archivo .shp**
+
+Este posiblemente es el archivo más relevante para propósitos de análisis geométrico, esto debido a que contiene la relación geométrica de los puntos que componen los polígonos.
+
+Para visualizar todas las capas que contiene un *shape file* se puede utilizar la siguiente instrucción:
+
+```{r}
+file_shp <- paste0(getwd(), '/datos/Alcaldias/alcaldias.shp')
+
+ogrListLayers(file_shp)
+```
+
+En este caso, solo se tiene una capa llamada `alcaldias`. Se carga el *shape file* en memmoria. La función recibe dos atributos:
+
+-   El nombre del *shape* que se quiere llamar
+-   El nombre de la capa de interés (`ogrListLayers`)
+
+```{r}
+file 
+
+shape <- readOGR(file_shp, layer="alcaldias")
+```
+
+Este archivo en particular 16 objetos de polígono, cabe destacar que son 16 porque este es el número de alcaldías en la CDMX. Cada uno de los objetos tiene 9 campos asociados.
+
+Se puede visualizar el *shape* desde R con una intrucción básica.
+
+```{r}
+par(mar=c(0,0,0,0))
+
+plot(shape,
+     col="#f2f2f2",
+     bg="skyblue",
+     lwd=0.25,
+     border=0)
+```
+
+También se puede visualizar la base de datos directamente sin cargar el archivo `*.dbf` con el comando: `shape@data`
+
+Se inspecciona el tamaño del shape con el comando: `length(shape)`. Esto debe coincidir con el número de alcaldías de la CDMX. Adicionalmente, esto debe coincidir con el número de renglones en la base de datos del archivo `shape@data |> dim()`
+
+Ademas tiene otros atributos interesantes: `shape@plotOrder`
+
+`bbox` nos da un resumen rápido sobre la distribución de los puntos en el espacio (Limites del shapefile): `shape@bbox`
+
+## Polígonos y coordenadas
+
+Para acceder a la información de un polígono, por ejemplo el primero, la notación que se debe utilizar es la siguiente: `shape@polygons[[1]]`
+
+Al ejecutarlo podemos observar que se tienen los siguientes elementos:
+
+-   Polygons: labpt, area, hole, ringDir, coords
+-   plotOrder
+-   labpt
+-   ID
+-   area
+
+Cada poligono está compuesto de otros subpoligonos tales que representan la forma de un objeto espacial. Sin embargo, en general, cada poligono se compone de 1 subpoligono (A excepción de islas en donde puede ser más de uno). Para acceder al contenido de los subpolígonos se utiliza la sintaxis `shape@polygons[[1]]@Polygons[[1]]`
+
+Podemos conocer el area del subpolígono 1 del polígono 1: `shape@polygons[[1]]@Polygons[[1]]@area`
+
+Lo más importante son las coordenadas: `shape@polygons[[1]]@Polygons[[1]]@coords`. Este conjunto tiene la matriz de puntos que conforman el poligono 1
+
+-   **Latitud**: `shape@polygons[[1]]@Polygons[[1]]@coords[,2]`
+
+-   **Longitud**: `shape@polygons[[1]]@Polygons[[1]]@coords[,1]`
+
+A este par de puntos en lat, lon se les conoce como **Coordenadas Geográficas**. Se pueden graficar esto puntos para alguna alcaldía, por ejemplo la Álvaro Obregón:
+
+```{r}
+plot(
+  shape@polygons[[1]]@Polygons[[1]]@coords[,1],
+  shape@polygons[[1]]@Polygons[[1]]@coords[,2])
+```
+
+¿Cómo se compara este polígono con la alcaldía representada por Google?
+
+### Interpretación gráfica
+
+Habiendo visto que un *shape* es una colección de coordenadas, estas coordenadas se definend e modo que representen lo mejor posible la geometría que se quiere representar. Después de eso, se puede hacer una conexión de estos puntos con líneas para completar la geometría. Tomando como ejemplo la cuarta alcaldía:
+
+```{r}
+par(mar=c(0,0,0,0))
+
+aux <- shape@polygons[[4]]@Polygons[[1]]@coords |>
+  data.frame()
+
+colnames(aux) <- c("lon","lat")
+
+plot(aux, bg="blue", lwd=0.25)
+lines(aux)
+```
+
+Vemos que se trata únicamente de una colección de puntos y líneas.
+
+## Proyecciones cartográficas
+
+Los puntos expresados en coordenadas geográficas se expresan con la siguiente notación para la cual no se va a entrar en mucho detalle, ya que cae en temas de geografía que exceden el alcance del curso:
+
+`+proj=longlat +datum=WGS84 +no_defs`
+
+A continuación, se describe el proceso paso a paso para hacer la conversión, a partir de las coordenadas geográficas a alguna proyección cartográfica. Sin importar si es un `KML/KML`, `SHP` y `GEOJSON`, ya sabemos procesar los archivos para agrupar las coordenadas. En este caso, partimos del *shape* de Alcaldias que acabamos de leer:
+
+```{r}
+# Longitud
+x <- shape@polygons[[1]]@Polygons[[1]]@coords[,1]
+
+# Latitud
+y <- shape@polygons[[1]]@Polygons[[1]]@coords[,2]
+
+# Se agrupan las coordenadas en un dataframe
+d <- data.frame(lon=x, lat=y)
+coordinates(d) <- c("lon", "lat")
+
+# Sistema de coordenadas actual (Coords. geográficas)
+proj4string(d) <- CRS("+proj=longlat +datum=WGS84 +no_defs")
+
+# Se almacena la proyección a la que se va a convertir
+CRS.new <- CRS("+proj=lcc +lat_1=17.5 +lat_2=29.5 +lat_0=12 +lon_0=-102 +x_0=2500000 +y_0=0 +ellps=GRS80 +units=m +no_defs")
+
+# Se transforma el sistema
+d_proyectado <- spTransform(d, CRS.new)
+D <- data.frame(d_proyectado)
+colnames(D) <- c("lon_LCC","lat_LCC")
+
+head(D)
+```
+
+### Proyección UTM Mercator
+
+Una de las proyeccionas más importantes con las que se van a trabajar en el curso es la UTM Mercator. Sin embargo, para poder hacer estas proyecciones primero es necesario tener definida la zona UTM o las zonas en las que vivirán las coordenadas. Los puntos de la CDMX se encuentran en la zona UTM 14 de Mercator, lo cual se define de la siguiente manera en R:
+
+```{r}
+# Zona UTM
+utm <- 14
+
+# Longitud
+x <- shape@polygons[[1]]@Polygons[[1]]@coords[,1]
+
+# Latitud
+y <- shape@polygons[[1]]@Polygons[[1]]@coords[,2]
+
+# Se agrupan las coordenadas en un dataframe
+d <- data.frame(lon=x, lat=y)
+coordinates(d) <- c("lon", "lat")
+
+# Sistema de coordenadas actual (Coords. geográficas)
+sputm <- SpatialPoints(d, proj4string=CRS("+proj=longlat +datum=WGS84"))
+
+# Sistema al que se va a convertir
+proyeccion <- CRS("+proj=utm +zone=14 +datum=WGS84 +units=m +no_defs ") 
+
+# Se transforma el sistema
+spgeo <- spTransform(sputm, proyeccion)
+spgeo <- as.data.frame(spgeo)
+colnames(spgeo) <- c("lon_UTM","lat_UTM")
+
+head(spgeo)
+```
+
+Lo anterior resulta en un equivalente como "lat,lon" en coordendas en el plano cartesiano.
+
+**Diferencias**
+
+Podemos visualizar las diferencias entre las diferentes proyecciones cartográficas:
+
+```{r}
+cbind(spgeo[1:10,], d[1:10,]) |>
+  cbind(D[1:10,]) |>
+  head()
+```
+
+## Función inpolygon
+
+Esta función es para determinar si una coordeada dada está dentro de un polígono definido, por ejemplo:
+
+```{r}
+# Coordenadas geográficas
+x <- shape@polygons[[1]]@Polygons[[1]]@coords[,1]
+y <- shape@polygons[[1]]@Polygons[[1]]@coords[,2]
+
+# Alcaldía Álvaro Obregon
+D <- data.frame(lat = y, lon = x)
+
+# Centroide de la alcaldía
+c(mean(D$lat), mean(D$lon))
+```
+
+Pregunta, ¿el ITAM se encuentra dentro de la alcaldía Álvaro Obregón?
+
+```{r}
+# Coordenadas del ITAM Río Hondo
+itam <- data.frame(lat=19.344407538815684, lon=-99.20002940738932)
+
+inpolygon(
+  itam$lat,
+  itam$lon,
+  D$lat,
+  D$lon,
+  boundary=FALSE)
+```
+
+Pregunta, ¿el estadio Omnilife está en la alcaldía Alvaro Obregón?
+
+```{r}
+omni <- data.frame(lat=20.681776386193583 , lon=-103.4626562316925)
+
+inpolygon(
+  omni$lat,
+  omni$lon,
+  D$lat,
+  D$lon,
+  boundary=FALSE)
+```
+
+## Tarea:
+
+Programar una propuesta de función inpolygon que utilice lógica de programación básica.
