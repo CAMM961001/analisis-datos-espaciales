@@ -1,0 +1,140 @@
+---
+title: "UTM Mercator"
+output: html_document
+date: "2023-02-13"
+---
+
+Carga de librerías
+
+```{r, echo=FALSE}
+library(foreign)
+library(tidyverse)
+library(lubridate)
+library(readr)
+library(sp)
+library(rgdal)
+library(pracma)
+library(aws.s3)
+library(R.utils)
+library(geosphere)
+```
+
+Habiendo visto algunas instrucciones básicas para el manejo de archivos de datos espaciales, para los ejemplos de esta lección se necesita crear un conjunto de puntos en coordenadas geográficas y otro en UTM Mercator.
+
+Se cargan los datos del archivo *shape* de los datos de Alcaldía de la CDMX
+
+```{r}
+file_shp <- paste0(getwd(), '/datos/Alcaldias/alcaldias.shp')
+
+shape <- readOGR(file_shp, layer="alcaldias")
+```
+
+Como se vio anteriormente, se puede generar la matriz de coordenadas geográficas para posteriormente convertirlas a su equivalente en UTM Mercator. Trabajando únicamente con uno de los polígonos se tiene:
+
+```{r}
+# Coordenadas geográficas
+coords <- data.frame(
+  longitud=shape@polygons[[1]]@Polygons[[1]]@coords[,1],
+  latitud=shape@polygons[[1]]@Polygons[[1]]@coords[,2])
+
+# Objeto de coordenadas cartográficas
+d <- data.frame(
+  lon=coords$longitud,
+  lat=coords$latitud)
+coordinates(d) <- c("lon", "lat")
+
+# Proyección para coordenadas geográficas
+sputm <- SpatialPoints(d, proj4string=CRS("+proj=longlat +datum=WGS84"))
+
+# Proyeccion a UTM Mercator
+proyeccion <- CRS("+proj=utm +zone=14 +datum=WGS84 +units=m +no_defs ") 
+
+# Transformación de los datos
+UTM <- spTransform(sputm, proyeccion) |>
+  data.frame()
+colnames(UTM) <- c("lon_UTM","lat_UTM")
+
+head(UTM)
+```
+
+## Distancias
+
+Una de las primeras medidas de interés para análisis espacial es la distancia que hay entre dos puntos. Ya sea que estos se encuentren en una proyección cartográfica o en coordenadas geográficas, la distancia entre dos puntos es de interés para diversos propósitos, como pudiera ser:
+
+-   Interesa conocer la distancia al restaurante más cercano
+-   La distancia de un crimen a su cáma de vigilancia más cercana
+-   La distancia de una ciudad a otra
+
+Para ello, es importante tener presente el sistema de coordenadas en el que se está trabajando ya que ello determina el tipo de medida de distancia que se utilizará.
+
+### Haversine
+
+En coordenadas geográficas se utiliza la distancia **Haversine**, mismo que entrega la distancia en metros:
+
+```{r}
+distHaversine(
+  c(coords$longitud[1900], coords$latitud[1900]),
+  c(coords$longitud[1], coords$latitud[1]),
+  r=6378137)
+```
+
+Siempre puede comprobar un resultado utilizando [GoogleMaps](https://www.google.com.mx/maps/dir/19.39475,-99.18871++/19.40356,-99.19384/@19.3991982,-99.1945889,16z/data=!3m1!4b1!4m7!4m6!1m3!2m2!1d-99.18871!2d19.39475!1m0!3e0)
+
+### Euclidiana
+
+En una proyección cartográfica cartesiana, como es el caso de la UTM Mercator, se pueden utilizar distancias euclidianas para definir la distancia entre dos puntos y su salida ya es en metros sin ninguna conversión adicional, por ejemplo
+
+```{r}
+euclidean <- function(a, b) sqrt(sum((a - b)^2))
+
+# Dos puntos cualesquiera de la matriz de UTM Mercator
+pto1 <- c(UTM$lon_UTM[1900],UTM$lat_UTM[1900])
+pto2 <- c(UTM$lon_UTM[1],UTM$lat_UTM[1])
+
+# Distancia
+euclidean(pto1,pto2)
+```
+Y vemos que las distancias son realmente parecidas. Este error es inevitable y es debido a la transformación realizada al hacer una proyección, por lo que se tiene que aprender a lidiar con estas diferencias en la práctica.
+
+El valor de referencia, es decir la distancia más precisa, es la distancia **Haversine**. Es recomendable utilizar esta sistema para calcular distancias, aunque no siempre será posible.
+
+# Cálculo comunes
+
+En análisis espacial es conveniente tener presentes algunos cálculo comunes que son de interés general, independientemente del tipo de análisis que se quiera realizar
+
+## Distancia promedio
+
+Se podría pensar ¿Qué tan lejos estamos de los demás puntos del conjunto?. Entre un punto de referencia y todos los otros puntos del conjunto, consideremos al punto **100** en `coords`, ¿Cuál es la distancia promedio a los demás puntos?
+
+Es importante tener en cuenta que hay muchas otras auxiliares más eficientes que utilizar `for()` o `while()`, sin embargo, utilizaremos estas funciones con fines ilustrativos
+
+```{r}
+# Arreglo de ceros
+mat <- matrix(0, nrow(coords), 1)
+
+# Se llena mat con las distancias a cada punto
+for(i in 1:nrow(mat)){
+  mat[i,1] <- distHaversine(
+    c(coords$longitud[100],coords$latitud[100]),
+    c(coords$longitud[i],coords$latitud[i]),
+    r=6378137)
+}
+```
+
+**IMPORTANTE**: Recuerda excluir al punto mismo (100), de otro modo se estaría subestimando la respuesta real.
+
+```{r}
+# Descontando el punto de referencia
+mean(mat[c(1:99,101:nrow(mat)),1]) |> print()
+
+# Contando el punto de referencia
+mean(mat[,1]) |> print()
+```
+En este caso la diferencia parece insignificante ya que tan sólo es de 5 metros, sin embargo, lo correcto es no considerarlo.
+
+## Ejercicios
+
+
+
+
+
