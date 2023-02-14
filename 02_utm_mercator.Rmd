@@ -94,6 +94,7 @@ pto2 <- c(UTM$lon_UTM[1],UTM$lat_UTM[1])
 # Distancia
 euclidean(pto1,pto2)
 ```
+
 Y vemos que las distancias son realmente parecidas. Este error es inevitable y es debido a la transformación realizada al hacer una proyección, por lo que se tiene que aprender a lidiar con estas diferencias en la práctica.
 
 El valor de referencia, es decir la distancia más precisa, es la distancia **Haversine**. Es recomendable utilizar esta sistema para calcular distancias, aunque no siempre será posible.
@@ -130,9 +131,83 @@ mean(mat[c(1:99,101:nrow(mat)),1]) |> print()
 # Contando el punto de referencia
 mean(mat[,1]) |> print()
 ```
+
 En este caso la diferencia parece insignificante ya que tan sólo es de 5 metros, sin embargo, lo correcto es no considerarlo.
 
 ## Ejercicios
+
+Considerando los puntos de una matriz de coordenadas geográficas `coords` y dado un punto de referencia `P=(lat,lon)`, programa lo siguiente en R:
+
+-   Una funcion para obtener el punto del conjunto `coords` que esté más cercano a P y la distancia entre estos
+
+```{r}
+p <- c(-99.19170, 19.37880)
+
+mas_cercano <- function(P){
+  idx <- 1
+  dist <- distHaversine(p1=P, p2=as.numeric(coords[1,]), r=6378137)
+  
+  for (i in 1:nrow(coords)-1){
+    k <- distHaversine(p1=P, p2=as.numeric(coords[i+1,]), r=6378137)
+    
+    if (k < dist){
+      dist <- k
+      idx <- i-1}
+  }
+  
+  return(c(idx,as.numeric(coords[idx,]),dist))
+}
+
+mas_cercano(P=p)
+```
+
+-   Una funcion para obtener el punto del conjunto `coords` que esté más lejano a P y la distancia entre estos
+
+```{r}
+mas_lejano <- function(P){
+  idx <- 1
+  dist <- distHaversine(p1=P, p2=as.numeric(coords[1,]), r=6378137)
+  
+  for (i in 1:nrow(coords)-1){
+    k <- distHaversine(p1=P, p2=as.numeric(coords[i+1,]), r=6378137)
+    
+    if (k > dist){
+      dist <- k
+      idx <- i-1}
+  }
+  
+  return(c(idx,as.numeric(coords[idx,]),dist))
+}
+
+mas_lejano(P=p)
+```
+
+-   Una funcion para obtener todos los punto del conjunto `coords` que estén a menos de r metros de P y la distancia entre estos puntos y P. Puedes dar la respuesta con una matriz de 2 columnas = [punto de COORDS, distancia a P]
+
+```{r}
+puntos_vecinos <- function(P, R){
+  puntos <- matrix(nrow=1, ncol=4)
+  
+  for(i in 1:nrow(coords)){
+    k <- distHaversine(p1=P, p2=as.numeric(coords[i,]), r=6378137)
+    
+    if(k <= R){
+      puntos <- rbind(
+        puntos,
+        c(i, as.numeric(coords[i,]), k))
+      }
+  }
+  return(puntos)
+}
+
+puntos_vecinos(P=p, R=150)
+```
+
+
+
+
+
+
 
 
 
