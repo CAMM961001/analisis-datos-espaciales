@@ -202,6 +202,7 @@ puntos_vecinos <- function(P, R){
 
 puntos_vecinos(P=p, R=150)
 ```
+
 # Datos del INEGI
 
 El censo poblacional del INEGI es probablemente la fuente de datos externos más importante del país. Este proyecto, que se realiza cada 10 años, es el esfuerzo más importante para estudiar las características de la población.
@@ -276,6 +277,7 @@ lines(matriz)
 Los microdatos son otro tipo de dato que reune el INEGI en el censo, sin embargo, estos se encuentran separados de los datos espaciales, por lo que para contar con la información completa sobre el Censo, es necesario cruzar estas dos fuentes de información.
 
 Este conjunto de datos contiene múltiples columnas, por ahora solamente nos quedaremos con las primeras. Carga de microdatos en memoria:
+
 ```{r}
 microdatos <- paste0(getwd(), '/datos/08_chihuahua/RESAGEBURB_08CSV20.csv')
 
@@ -290,24 +292,15 @@ Un aspecto importante que debes tener en cuenta a la hora de integrar estos dato
 `ENTIDAD (2) + MUNICIPIO (3) + LOCALIDAD (4) + AGEB (4) + MANZANA (3)`
 
 Si inspeccionamos los datos del MGN, podemos observar lo siguiente:
+
 ```{r}
 shape@data |> head(1)
 ```
+
 En este caso, la `CVEGEO` es la unión de las demás claves. Estas mismas claves se pueden encontrar en el conjunto de microdatos:
 
 ```{r}
 micro |> head(1)
 ```
+
 Para integrar la información, basta con concatenar las claves del conjunto de `microdatos` para armar la `CVEGEO`, y posteriormente unir ambos conjuntos.
-
-
-
-
-
-
-
-
-
-
-
-
