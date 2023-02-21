@@ -1,0 +1,123 @@
+---
+title: "Integración de fuentes de datos"
+output: html_document
+date: "2023-02-15"
+---
+
+Carga de librerías
+
+```{r, echo=FALSE}
+library(tidyverse)
+library(lubridate)
+library(rgdal)
+library(leaflet)
+library(readxl)
+library(readr)
+library(RCurl)
+library(foreign)
+library(geosphere)
+library(sp)
+library(rgeos)
+```
+
+## Función over
+
+En esta sesión vamos a explorar una alternativa más eficiente a los ciclos de la función `inpolygon`. Para ilustrarlo, se va a volver a trabajar con los datos de alcaldías
+
+```{r}
+file <- paste0(getwd(), '/datos/Delitos.csv')
+
+A <- read_csv(file) |>
+  filter(latitud != 0 & longitud != 0) |>
+  sample_n(size = 1000,replace = FALSE)
+```
+
+Y cargamos la capa de `alcaldias` del *shape file* recordando que podemos ver su estructura con el compado `View(shape)`:
+
+```{r}
+alcaldias <- paste0(getwd(), '/datos/Alcaldias/alcaldias.shp')
+
+shape <- readOGR(alcaldias, layer="alcaldias")
+```
+
+¿Cómo se puede determinar en qué delegación caen los puntos sin utilizar la función inpolygon? Existe una función `over()`
+
+### Intersección SpatialPoints - Shape
+
+Como siempre, se empieza construyendo el data frame de SpatialPoints utilizando los datos de los delitos. **IMPORTANTE**: En este caso, hacer una coversión entre proyecciones no es necesario pues los puntos del *shape* y delitos están en la misma proyección. En otro caso, sí debe hacerse antes de intersectar con `over()` o `inpolygon()`.
+
+En este caso, se toman las columnas necesarias de la matriz de delitos para obtener un *SpatialPointsDataFrame*:
+
+```{r}
+dat <- data.frame(
+  Longitude = A$longitud,
+  Latitude = A$latitud,
+  names = 1:nrow(A))
+
+coordinates(dat) <- ~ Longitude + Latitude
+
+# Consolidar la proyección de delitos con la de alcaldías
+proj4string(dat) <- proj4string(shape)
+```
+
+Finalmente, se utiliza la función `over` que recibe 2 argumentos: - dat: *SpatialPointsDataFrame* las coordenadas que queremos intersectar - shape: *shapefile* de referencia para asignar etiqueta (alcaldia)
+
+```{r}
+C <- over(dat, shape)
+
+# Unir resultados a arreglo de delitos
+A <- cbind(
+  A,
+  select(C, nomgeo, cve_mun))
+
+head(A)
+```
+
+Y se puede visualizar con `View(A)`:
+
+### Intersección Shape - Shape
+
+Tambien es posible realizar la interseccion shape vs shape, sin embargo, es necesario verificar que los conjuntos tienen la misma proyección. Para ilustrarlo, cargamos un *shapefile* sobre códigos postales en la CDMX:
+
+```{r}
+cp_path <- paste0(getwd(), '/datos/cp_cdmx/cp_09cdmx_v8_1.shp')
+layer <- ogrListLayers(cp_path)
+
+cp <- readOGR(cp_path, layer=layer)
+```
+
+Nuevamente, se puede inspeccionar el contenido del *shape* con `View(cp@data)`.
+
+Con este comando, cómo podrías responder la pregunta ¿En qué alcaldía cae cada código postal de la CDMX?
+
+```{r}
+B <- over(cp, shape)
+
+# Filtrar y unir la información
+CP <- cbind(
+  cp@data |> select(cp),
+  B |> select(nomgeo, cve_mun))
+
+head(CP)
+```
+
+Ahora intentamos intersectar dos *shape file* en proyecciones diferentes:
+
+```{r}
+otros <- paste0(getwd(), '/datos/otro_cp/09mun.shp')
+layer <- ogrListLayers(otros)
+
+alc_bis <- readOGR(otros, layer=layer)
+```
+
+Podemos observar que también se trata de un *shape* de alcaldías, pero en este caso de una fuente desconocida:
+
+```{r}
+plot(alc_bis)
+```
+
+Si revisamos la proyección nos podemos dar cuenta de que no está en coordenadas geográficas:
+
+```{r}
+alc_bis@proj4string 
+```
