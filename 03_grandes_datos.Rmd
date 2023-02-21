@@ -19,6 +19,107 @@ library(readxl)
 library(RCurl)
 ```
 
+Es momento de empezar a pensar en el cómo podemos manejar grandes cantidades de información. Como se vio en las lecciones anteriores, los datos espaciales están hechos de tal manera que rápidamente pueden saturar la memoria de los equipos, y no siempre tendremos a disposición recursos de cómputo ilimitados. Por eso, definir estrategias para manejar grandes cantidades de información es importante.
+
+Para esta lección se van a utilizar datos de crímenes registrados en la Ciudad de México, mismos que se puede extraer del portal de [datos abiertos](https://datos.cdmx.gob.mx/dataset/carpetas-de-investigacion-pgj-cdmx) de la ciudad.
+
+```{r}
+delitos <- paste0(getwd(), '/datos/delitos/Delitos.csv')
+A <- read_csv(delitos)
+
+# Filtrar registros válidos
+B <- filter(A, latitud != 0 & longitud != 0)
+
+# Liberar memoria
+rm(A)
+
+dim(B)
+```
+Observamos que se trata de un conjunto significativamente grande.
+
+# Tiempo de procesamiento
+
+Supongamos que se quiere ejecutar un algoritmo en el que se nos pide determinar la distancia del primer punto a los subsecuentes $n$. Una forma de conseguirlo es utilizando lógica de programación básica, como pudiera ser un ciclo for:
+
+```{r}
+for (i in 1:10){
+  out <- distHaversine(
+    c(B$longitud[i], B$latitud[i]),
+    c(B$longitud[1],B$latitud[1]),
+    r=6378137)
+  print(c(i, out))
+}
+```
+Pero ¿qué pasa cuando el número de puntos aumenta? Para ilustrarlo podemos pensar en el siguiente código:
+
+```{r}
+# Vector para tiempo de procesamiento
+tiempo <- c()
+
+# 100 puntos
+a <- now()
+
+for (i in 1:100){
+  distHaversine(
+    c(B$longitud[i], B$latitud[i]),
+    c(B$longitud[1],B$latitud[1]),
+    r=6378137)
+}
+# Registrar tiempo
+a <- now() - a
+tiempo <- rbind(tiempo, a %>% as.numeric())
+
+# 1,000 puntos
+a <- now()
+for (i in 1:1000){
+  distHaversine(
+    c(B$longitud[i], B$latitud[i]),
+    c(B$longitud[1], B$latitud[1]),
+    r=6378137)
+}
+# Registrar tiempo
+a <- now() - a
+tiempo <- rbind(tiempo, a %>% as.numeric())
+
+# 10,000 puntos
+a <- now()
+for (i in 1:10000){
+  distHaversine(
+    c(B$longitud[i],B$latitud[i]),
+    c(B$longitud[1],B$latitud[1]),
+    r=6378137)
+}
+# Registrar tiempo
+a <- now() - a
+tiempo <- rbind(tiempo, a %>% as.numeric())
+
+# 100,000 puntos
+a <- now()
+for (i in 1:100000){
+  distHaversine(
+    c(B$longitud[i],B$latitud[i]),
+    c(B$longitud[1],B$latitud[1]),
+    r=6378137)
+}
+# Registrar tiempo
+a <- now() - a
+tiempo <- rbind(tiempo,a %>% as.numeric())
+```
+
+Observamos gráficamente el comportamiento del tiempo de procesamiento:
+
+```{r}
+plot(tiempo)
+lines(tiempo)
+```
+Lo primero que destaca es que el tiempo de proceso no aumenta linealmente con el número de puntos, más bien tiene un comportamiento exponencial. Otra forma de verlo es comparando la proporción de tiempo que aumenta con cada paso:
+
+```{r}
+c(tiempo[2]/tiempo[1], tiempo[3]/tiempo[2], tiempo[4]/tiempo[3])
+```
+Vemos que las proporciones no aumentan linealmente, lo cual es un indicador de que debemos tener cuidado con los recursos computacionales ya que fácilmente puede aumentar el costo computacional.
+
+# Optimización de cálculo
 
 
 
