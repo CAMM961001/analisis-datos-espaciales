@@ -119,12 +119,121 @@ c(tiempo[2]/tiempo[1], tiempo[3]/tiempo[2], tiempo[4]/tiempo[3])
 ```
 Vemos que las proporciones no aumentan linealmente, lo cual es un indicador de que debemos tener cuidado con los recursos computacionales ya que fácilmente puede aumentar el costo computacional.
 
-# Optimización de cálculo
+# Optimización de cálculos
+
+Si bien como se mencionó, una forma de atender este problema sería teniendo recursos computacionales infinitos, esto no es una solución viable por diversos motivos. Lo más adecuado (Y lo más elegante) es proponer lógica de filtrado de información para optimizar los cálculo.
+
+Para ilustrarlo, supón que te solicitan determinar **cuantos** delitos están a **menos de 100 metros** de los primeros 5 delitos registrados en la base `B`. Podrías resolverlo utilizando lógica de programación básica de la siguiente manera:
+
+```{r}
+# Objeto para almacenar datos
+total <- c()
+
+# Estampa de tiempo
+a <- now()
+
+# Procesamiento
+# Primeros 5 delitos
+for(i in 1:5){
+  # Contador de delitos
+  vec <- 0
+  
+  # Condición de distancia
+  for(j in 1:nrow(B)){
+    if(
+      (distHaversine(
+        c(B$longitud[j], B$latitud[j]),
+        c(B$longitud[i], B$latitud[i]),
+        r=6378137) < 100)
+      )
+      {vec <- vec + 1}
+  }
+  # Acumulamos los delitos cercanos por cada uno
+  total <- rbind(total,vec)
+  print(i)
+}
+
+# Medimos el tiempo de procesamiento
+a_ciclo <- now() - a
+a_ciclo
+```
+
+Vemos que efectivamente hace el trabajo, pero es sumamente ineficiente. Podemos mejorar esta situación aprovechando algunas características de lo que hemos visto hasta heste punto. 
+
+Recordemos que la proyección UTM Mercator es una proyección cartográfica **cartesiana**, es decir, sus coordenadas se pueden representar y manipular con herramientas geométricas convencionales, que para el caso de la distancia, se puede utilizar una **distancia euclideana**. Teniendo esto en cuenta, se puede definir una circunferencia de radio $r$ inscrita en un cuadrado de longitud por lado de $2r$, y centrada en el punto de referencia, por lo que se podrían filtrar aquellos puntos de la base que se encuentren en la región:
+
+$$x\in\{x_0-r, x_0+r\}$, $y\in\{y_0-r, y_0+r\}$$
+
+Una vez filtrados estos puntos, entonces se puede ejecutar la misma lógica definida anteriormente. Antes de continuar, primero definimos una función para determinar la **distancia euclidiana** entre dos puntos:
+
+```{r}
+euclidean <- function(a, b) {sqrt(sum((a - b)^2))}
+```
+
+Para realizarlo, como siempre, empezamos convirtiendo los datos de la proyección en la que se encuentren a la proyección deseada (UTM Mercator en este caso):
 
 
+```{r}
+# Objeto con coordenadas
+coords <- data.frame(lon=B$longitud, lat=B$latitud)
+coordinates(coords) <- c("lon", "lat")
 
+# Proyección inicial
+sp_utm <- SpatialPoints(coords, proj4string=CRS("+proj=longlat +datum=WGS84"))
 
+# Proyección final
+sp_latlon <- CRS("+proj=utm +zone=14 +datum=WGS84 +units=m +no_defs") 
 
+# Transformación de datos
+sp_geo <- spTransform(sp_utm, sp_latlon)
+sp_geo <- as.data.frame(sp_geo)
+
+# Tenemos un equivalente como "lat,lon" en coordendas en el plano cartesiano
+colnames(sp_geo) <- c("lon_UTM","lat_UTM")
+head(sp_geo)
+```
+
+Una vez en este punto, hacemos el procesamiento de los datos como se describió, y comparamos el tiempo:
+
+```{r}
+# Objeto para almacenar datos
+total2 <- c()
+
+# Estampa de tiempo
+b <- now()
+# Procesamiento
+# Primeros 5 delitos
+for(i in 1:5){
+  # Contador de delitos
+  aux <- 0
+  
+  # Filtrar delitos en el cuadrado (Valor absoluto)
+  vec1 <- which( abs(sp_geo$lat_UTM[i] - sp_geo$lat_UTM) < 100)
+  vec2 <- which( abs(sp_geo$lon_UTM[i] - sp_geo$lon_UTM) < 100)
+  vec <- intersect(vec1,vec2)
+  
+  # Filtrar delitos en el cuadrado pero fuera del círculo
+  if(length(vec) > 0){
+    for(j in 1:length(vec)){
+      if( 
+        (euclidean(
+          c(sp_geo$lon_UTM[i], sp_geo$lat_UTM[i]),
+          c(sp_geo$lon_UTM[vec[j]], sp_geo$lat_UTM[vec[j]])) < 100) )
+        {aux <- aux + 1}
+    }
+  }
+  # Acumular delito en contador
+  total2 <- rbind(total2, aux)
+  print(i)
+}
+
+# Tiempo de procesamiento
+b_ciclo <- now() - b
+b_ciclo
+
+```
+
+Observamos que efectivamente hace el trabajo, y además lo hace en un tiempo significativamente menor al del proceso anterior.
 
 
 
