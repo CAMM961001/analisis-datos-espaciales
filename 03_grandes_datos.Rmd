@@ -423,36 +423,142 @@ m %>%
   addProviderTiles(providers$CartoDB.VoyagerLabelsUnder)
 ```
 
+### Etiquetas en el mapa
+
+Otro aspecto importante de un mapa es identificar algún punto interesante, para ello se pueden incorporar etiquetas con los siguientes comandos:
+
+```{r}
+m <- leaflet(data = rest) %>% 
+  addTiles() %>% 
+  addMarkers(~longitud, ~latitud) %>% 
+  addTiles() %>% 
+  addProviderTiles(providers$CartoDB.VoyagerLabelsUnder)
+m
+```
+
+POP UP con el nombre del establecimiento
+
+```{r}
+m <- leaflet(data = rest) %>% 
+  addTiles() %>%
+  addMarkers(~longitud, ~latitud, label = ~as.character(nom_estab)) %>% 
+  addTiles() %>% addProviderTiles(providers$CartoDB.VoyagerLabelsUnder)
+m
+```
+
+CLICK con el nombre del establecimiento
+
+```{r}
+m <- leaflet(data = rest) %>% addTiles() %>%
+  addMarkers(~longitud, ~latitud, popup = ~as.character(nom_estab)) %>% 
+  addTiles() %>% addProviderTiles(providers$CartoDB.VoyagerLabelsUnder)
+m
+```
+
+Podemos combinar ambas funcionalidades en el mismo, aunque no tiene mucho sentido
+
+```{r}
+m <- leaflet(data = rest) %>%
+  addTiles() %>%
+  addMarkers(
+    ~longitud,
+    ~latitud,
+    popup=~as.character(latitud),
+    label=~as.character(nom_estab)) %>%
+  addTiles() %>%
+  addProviderTiles(providers$CartoDB.VoyagerLabelsUnder)
+m
+```
+
+También se pueden personalizar los íconos con alguna temática, por ejemplo el ícono de un tren color verde:
+
+```{r}
+icon.glyphicon <- makeAwesomeIcon(
+  icon= 'subway',
+  markerColor = 'lightgreen',
+  iconColor = 'black',
+  library = 'fa')
+
+#Lo aplicamos al mapa con la capa base de nuestra preferencia
+m <- leaflet(data = rest) %>%
+  addAwesomeMarkers(rest$longitud, lat = rest$latitud,
+                    popup=rest$nom_estab,
+                    icon = icon.glyphicon) %>% 
+  addTiles() %>% addProviderTiles(providers$CartoDB.VoyagerLabelsUnder)
+m
+```
+
+O el ícono de Amazon en color rosa:
+
+```{r}
+icon.amazon <- makeAwesomeIcon(
+  icon= 'amazon',
+  markerColor = 'pink',
+  iconColor = 'black',
+  library = 'fa')
+
+m <- leaflet(data = rest) %>%
+  addAwesomeMarkers(rest$longitud, lat = rest$latitud,
+                    popup=rest$nom_estab,
+                    icon = icon.amazon) %>% 
+  addTiles() %>% addProviderTiles(providers$CartoDB.VoyagerLabelsUnder)
+m
+```
+
+Podemos ver toda la lista de iconos disponibles para nuestro mapa y personalizar con a nuestro gusto o requerimientos en la siguiente [liga](https://fontawesome.com/v5.15/icons?d=gallery&p=2). También es posible incorporar nuestro propios iconos.
+
+### Visualización de _shape files_
+
+Ademas de los puntos, tambien podemos visualizar shapefiles en Leaflet, por ejemplo el shape de Alcaldias que se ha venido utilizando:
+
+```{r}
+m <- leaflet(shape) %>%
+  addPolygons() %>% 
+  addTiles() %>%
+  addProviderTiles(providers$CartoDB.VoyagerLabelsUnder)
+m
+```
+
+Nos podemos quedar con algunas alcaldías de interés:
+
+```{r}
+shape_sub <- subset(
+  shape,
+  shape$nomgeo %in% c("Tlalpan","Iztapalapa")) 
+
+#Pintamos el subconjunto
+leaflet(shape_sub) %>%
+  addPolygons() %>% 
+  addTiles() %>%
+  addProviderTiles(providers$CartoDB.VoyagerLabelsUnder)
+```
+
+### Mapas Clorophet
+
+Otra visualización importante son los clorophets. Estos mapas muestran información agregada por polígono, por ejemplo, podemos ver el número de televisiones de cada alcaldía:
+
+```{r}
+# Paleta de colores
+pal <- colorNumeric(palette="Blues", domain=shape$television)
+
+# Mapa con número de televisiones
+m %>%
+  addPolygons(stroke=FALSE,
+              smoothFactor=0.2,
+              fillOpacity=1,
+              color=~pal(television))
 
 
 
+```
 
+Y podemos incluir el nombre de las alcaldías con funciones PopUp
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+```{r}
+m %>%
+  addPolygons(stroke=FALSE,
+              smoothFactor=0.2,
+              fillOpacity=1,
+              color=~pal(television),
+              popup=~as.character(nomgeo))
+```
