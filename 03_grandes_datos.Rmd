@@ -321,4 +321,40 @@ Y vemos que los resultados entre el ciclo `for` con haversine coinciden con los 
 
 # Visualización de datos espaciales
 
-kdjfbg
+## Herramientas web
+
+Para la visualización y generación de mapas existen ya múltiples herramientas que nos pueden ayudar. Algunas son herramientas locales, pero también existen herramientas web, como podrían ser **myMaps** o **Earth** ambas de Google.
+
+Estas dos en particular, requieren que la información esté en un tipo de archivo **.kml**. Toma los datos de las alcaldías por ejemplo, para generar este tipo de archivo utiliza los comandos:
+
+```{r}
+# Carga de datos
+alcaldias_dir <- paste0(getwd(), '/datos/Alcaldias')
+alcaldias <- paste0(getwd(), '/datos/Alcaldias/alcaldias.shp')
+
+shape = readOGR(alcaldias, layer="alcaldias")
+
+# Escribir KML
+writeOGR(
+  shape,
+  dsn=paste0(alcaldias_dir, "/alc.kml"),
+  layer="alc",
+  driver="KML")
+```
+
+Estos datos los puedes cargar en las herramientas descritas:
+
+-   [Google Earth](https://www.google.com.mx/earth/)
+-   [myMaps](https://www.google.com/intl/es-419/maps/about/mymaps/)
+
+
+
+
+
+
+
+
+
+
+
+
