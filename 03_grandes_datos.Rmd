@@ -347,6 +347,104 @@ Estos datos los puedes cargar en las herramientas descritas:
 -   [Google Earth](https://www.google.com.mx/earth/)
 -   [myMaps](https://www.google.com/intl/es-419/maps/about/mymaps/)
 
+## Leaflet
+
+Leaflet es una librería de JavaScript pero adaptada de gran forma para R y otros lenguajes. Puedes consultar mayor información en su [página](https://leafletjs.com/).
+
+Para demostrar su uso, consideramos una base de datos con los restaurantes de la ciudad de México:
+
+```{r}
+restaurantes_path <- paste0(getwd(), '/datos/restaurantes_cdmx.csv')
+rest <- read_csv(restaurantes_path) |> data.frame()
+
+head(rest)
+```
+
+Por fines prácticos, nos quedamos únicamente con algunos registros:
+
+```{r}
+rest <- rest[1:10,]
+```
+
+Cargamos las librerías que nos permitirán generar los mapas:
+
+```{r}
+library(maps)
+library(leaflet)
+```
+
+Creamos un objeto de leaflet y lo centramos en la Ciudad de México (o podemos agregar las coordenadas de otro lugar):
+
+```{r}
+m <- leaflet() |>
+  setView(lng = -99.21094624232052, lat = 19.390519038362434, zoom = 10)
+
+m |> addTiles()
+```
+
+Se puede cambiar el zoom inicial del objeto 
+
+```{r}
+m <- leaflet() %>% setView(lng = -99.21094624232052, lat = 19.390519038362434, zoom = 8)
+m %>% addTiles()
+```
+
+Y se puede definir una capa base del mapa, podemos utilizar libremente diseños de otros proveedores en leaflet. Por default, Leaflet utiliza los de OpenStreetMap OSM (pero no son muy bonitos). En el siguiente [enlace](http://leaflet-extras.github.io/leaflet-providers/preview/index.html), podemos ver las distintas opciones de diseño y proveedores.
+
+Utilizamos la capa Positron de CartoDB:
+
+```{r}
+m %>%
+  addTiles() %>%
+  addProviderTiles(providers$CartoDB.Positron)
+```
+
+Capas de OSM
+
+```{r}
+m %>%
+  addTiles() %>%
+  addProviderTiles(providers$OpenStreetMap.France)
+```
+
+Color Negro
+
+```{r}
+m %>%
+  addTiles() %>%
+  addProviderTiles(providers$CartoDB.DarkMatter)
+```
+
+Capa más estandar de Carto
+
+```{r}
+m %>%
+  addTiles() %>%
+  addProviderTiles(providers$CartoDB.VoyagerLabelsUnder)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
