@@ -35,6 +35,7 @@ rm(A)
 
 dim(B)
 ```
+
 Observamos que se trata de un conjunto significativamente grande.
 
 # Tiempo de procesamiento
@@ -50,6 +51,7 @@ for (i in 1:10){
   print(c(i, out))
 }
 ```
+
 Pero ¿qué pasa cuando el número de puntos aumenta? Para ilustrarlo podemos pensar en el siguiente código:
 
 ```{r}
@@ -112,11 +114,13 @@ Observamos gráficamente el comportamiento del tiempo de procesamiento:
 plot(tiempo)
 lines(tiempo)
 ```
+
 Lo primero que destaca es que el tiempo de proceso no aumenta linealmente con el número de puntos, más bien tiene un comportamiento exponencial. Otra forma de verlo es comparando la proporción de tiempo que aumenta con cada paso:
 
 ```{r}
 c(tiempo[2]/tiempo[1], tiempo[3]/tiempo[2], tiempo[4]/tiempo[3])
 ```
+
 Vemos que las proporciones no aumentan linealmente, lo cual es un indicador de que debemos tener cuidado con los recursos computacionales ya que fácilmente puede aumentar el costo computacional.
 
 # Optimización de cálculos
@@ -158,7 +162,9 @@ a_ciclo <- now() - a
 a_ciclo
 ```
 
-Vemos que efectivamente hace el trabajo, pero es sumamente ineficiente. Podemos mejorar esta situación aprovechando algunas características de lo que hemos visto hasta heste punto. 
+Vemos que efectivamente hace el trabajo, pero es sumamente ineficiente. Podemos mejorar esta situación aprovechando algunas características de lo que hemos visto hasta heste punto.
+
+## Filtrado de datos - Criterio del cuadrado
 
 Recordemos que la proyección UTM Mercator es una proyección cartográfica **cartesiana**, es decir, sus coordenadas se pueden representar y manipular con herramientas geométricas convencionales, que para el caso de la distancia, se puede utilizar una **distancia euclideana**. Teniendo esto en cuenta, se puede definir una circunferencia de radio $r$ inscrita en un cuadrado de longitud por lado de $2r$, y centrada en el punto de referencia, por lo que se podrían filtrar aquellos puntos de la base que se encuentren en la región:
 
@@ -171,7 +177,6 @@ euclidean <- function(a, b) {sqrt(sum((a - b)^2))}
 ```
 
 Para realizarlo, como siempre, empezamos convirtiendo los datos de la proyección en la que se encuentren a la proyección deseada (UTM Mercator en este caso):
-
 
 ```{r}
 # Objeto con coordenadas
@@ -235,5 +240,85 @@ b_ciclo
 
 Observamos que efectivamente hace el trabajo, y además lo hace en un tiempo significativamente menor al del proceso anterior.
 
+Sin embargo, si bien esto es mucho más eficiente, aún no es del todo correcto. ¿Qué observas si comparas los resultados del primero proceso y el segundo? Toma en cuenta lo siguiente:
 
+-   El primer proceso, si bien es ineficiente, sus resultados son confiables pues se determinaron las distancias con `Haversine`, es decir, directamente en coordenadas geográficas.
+-   El segundo, si bien es eficiente, sus resultados se determinaron con distancias en proyección UTE Mercator, es decir, hay errores en los cálculos por la proyección en sí misma.
 
+Observamos los resultados:
+
+```{r}
+cbind(total, total2)
+```
+
+Y efectivamente, existen diferencias en los cálculos.
+
+## Filtrando en coordenadas geográficas
+
+Se puede corregir la situación anterior pensando en lo siguiente:
+
+-   En coordenadas geográficas el cálculo de distancia usando `Haversine` es mucho más confiable.
+-   En UMT Mercator puedo filtrar con mayor facilidad los datos para eficientar mis cálculos.
+
+Para hacer cálculo eficientes y confiables, puedo usar la siguiente lógica:
+
+1.  Convertir mis datos a proyección UTM Mercator
+2.  Filtrar datos de interés con criterio del cuadrado
+3.  Regresar datos filtrados a coordenadas geográficas
+4.  Calcular distancia Haversine
+
+```{r}
+# Objeto para almacenar datos
+total3 <- c()
+
+# Estampa de tiempo
+c <- now()
+
+# Procesamiento
+# Primeros 5 delitos
+for(i in 1:5){
+  # Contador de delitos
+  aux <- 0
+  
+  # Filtrar delitos en el cuadrado (Valor absoluto)
+  vec1 <- which( abs(sp_geo$lat_UTM[i] - sp_geo$lat_UTM) < 100)
+  vec2 <- which( abs(sp_geo$lon_UTM[i] - sp_geo$lon_UTM) < 100)
+  vec <- intersect(vec1,vec2)
+  
+  # Filtrar delitos en el cuadrado pero fuera del círculo
+  if(length(vec) > 0){
+    for(j in 1:length(vec)){
+      if(
+        (distHaversine(
+          c(B$longitud[vec[j]], B$latitud[vec[j]]),
+          c(B$longitud[i],B$latitud[i]),
+          r=6378137) < 100))
+        {aux <- aux + 1}
+    }
+  }
+  # Acumular delito en contador
+  total3 <- rbind(total3,aux)
+  print(i)
+}
+
+# Tiempo de procesamiento
+c_ciclo <- now() - c
+c_ciclo
+```
+
+Vemos que efectivamente hace el trabajo, y de igual forma lo realiza eficientemente. La diferencia en esta ocasión fue que se utilizó la distancia Haversine. Comparamos los resultados:
+
+```{r}
+resultados <- data.frame(
+  for_hav=total,
+  filtro_utm=total2,
+  filtro_hav=total3)
+
+resultados
+```
+
+Y vemos que los resultados entre el ciclo `for` con haversine coinciden con los resultados del filtro con haversine. Logramos obetener el mismo resultado, utilizando un código mucho más eficiente.
+
+# Visualización de datos espaciales
+
+kdjfbg
