@@ -57,7 +57,7 @@ colnames(UTM) <- c("lon_UTM","lat_UTM")
 head(UTM)
 ```
 
-## Distancias
+# Distancias
 
 Una de las primeras medidas de interés para análisis espacial es la distancia que hay entre dos puntos. Ya sea que estos se encuentren en una proyección cartográfica o en coordenadas geográficas, la distancia entre dos puntos es de interés para diversos propósitos, como pudiera ser:
 
@@ -67,7 +67,7 @@ Una de las primeras medidas de interés para análisis espacial es la distancia 
 
 Para ello, es importante tener presente el sistema de coordenadas en el que se está trabajando ya que ello determina el tipo de medida de distancia que se utilizará.
 
-### Haversine
+## Haversine
 
 En coordenadas geográficas se utiliza la distancia **Haversine**, mismo que entrega la distancia en metros:
 
@@ -80,7 +80,7 @@ distHaversine(
 
 Siempre puede comprobar un resultado utilizando [GoogleMaps](https://www.google.com.mx/maps/dir/19.39475,-99.18871++/19.40356,-99.19384/@19.3991982,-99.1945889,16z/data=!3m1!4b1!4m7!4m6!1m3!2m2!1d-99.18871!2d19.39475!1m0!3e0)
 
-### Euclidiana
+## Euclidiana
 
 En una proyección cartográfica cartesiana, como es el caso de la UTM Mercator, se pueden utilizar distancias euclidianas para definir la distancia entre dos puntos y su salida ya es en metros sin ninguna conversión adicional, por ejemplo
 
@@ -203,13 +203,65 @@ puntos_vecinos <- function(P, R){
 puntos_vecinos(P=p, R=150)
 ```
 
+# Marco Geoestadístico Nacional (MGN)
 
+En esta sección se utilizarán los datos para Chihuahua del [Marco Geoestadístico Nacional](https://www.dropbox.com/s/vt477y1c2aidn7l/08_chihuahua.zip?dl=1), y se cargan los datos sobre las manzanas de Chihuahua, es decir, el archivo `08m.shp`.
 
+Lo primero que puedes observar es la cantidad de polígonos que contiene este *shape file*. Es importante destacar que como este se encuentra a nivel de manzana, la cantidad de polígonos es significativamente mayor a la del archivo de Alcaldías.
 
+```{r}
+chi_path <- paste0(getwd(), '/datos/08_chihuahua/conjunto_de_datos/08m.shp')
 
+shape <- readOGR(chi_path, layer='08m')
+length(shape)
+```
 
+En este caso, se cuenta con **111,956** manzanas en Chihuahua.
 
+Sin embargo, llegado a este punto, un aspecto que es de vital importancia es el entendimiento de los datos. ¿Qué significa cada variable? Independientemente del conjunto de datos, asegurate de leer los diccionarios o documentación de los datos antes de utilizarlos.
 
+Como siempre, la mejor práctica para datos espaciales es empezar por entender la proyección en la que se encuentran los datos. En el caso del MGN, la institución que lo realiza (INEGI) tiene su propio sistema de proyecciones que no necesariamente tiene que coincidir con alguno de los utilizados de forma estándar.
 
+Esto lo podemos validar con el comando `shape@proj4string`. Lo cual resulta en que el MGN utiliza la proyección:
 
+`+proj=lcc +lat_0=12 +lon_0=-102 +lat_1=17.5 +lat_2=29.5 +x_0=2500000 +y_0=0 +ellps=GRS80 +units=m +no_defs`
 
+Nótese que efectivamente se trata de una proyección muy diferente a las que normalmente nos encontraríamos.
+
+Convertimos la matriz de puntos en la proyección del INEGI a coordenadas geográficas.
+
+```{r}
+# Coordenadas geográficas
+coords <- data.frame(
+  lon=shape@polygons[[1]]@Polygons[[1]]@coords[,1],
+  lat=shape@polygons[[1]]@Polygons[[1]]@coords[,2])
+
+coordinates(coords) <- c("lon", "lat")
+
+# Proyección inicial
+sp_inegi <- SpatialPoints(
+  coords=coords,
+  proj4string=CRS('+proj=lcc +lat_0=12 +lon_0=-102 +lat_1=17.5 +lat_2=29.5 +x_0=2500000 +y_0=0 +ellps=GRS80 +units=m +no_defs'))
+
+# Proyeccion final
+sp_latlon <- CRS('+proj=longlat +datum=WGS84') 
+
+# Transformación de los datos
+matriz <- spTransform(sp_inegi, sp_latlon) |> data.frame()
+colnames(matriz) <- c("lon","lat")
+
+head(matriz)
+```
+
+Una vez convertidos los datos a la proyección deseada, se puede trabajar con ellos. Por ejemplo, se puede obtener el centroide de la manzana:
+
+```{r}
+c(mean(matriz$lon),mean(matriz$lat))
+```
+
+O se puede graficar el polígono que representa a esta manzana:
+
+```{r}
+plot(matriz)
+lines(matriz)
+```
