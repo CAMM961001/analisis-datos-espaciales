@@ -4,6 +4,11 @@
 *.prj
 *.shp
 *.shx
+*.csv
 .Rhistory
 datos/
+.Rproj.user/
+.DS_Store
+.RData
+estados/
 
