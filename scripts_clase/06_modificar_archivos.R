@@ -18,7 +18,6 @@ library(foreign)
 library(geosphere)
 library(sp)
 library(foreign)
-#Instalamos este paquete nuevo
 library(rvest)
 
 ###### Modificacion de shapefile - agregar o eliminar variables
@@ -27,7 +26,8 @@ library(rvest)
 
 ########################################################################
 #BD Alcaldias
-shape=readOGR("~/Downloads/Datos_Espaciales/Alcaldias/alcaldias.shp", layer="alcaldias")
+path <- paste0(getwd(), '/datos/Alcaldias/alcaldias.shp')
+shape=readOGR(path, layer="alcaldias")
 
 #Recordemos el contenido tabular del shapefiles
 shape@data %>% View()
@@ -39,8 +39,8 @@ plot(shape)
 
 ########################################################################
 #BD Codigo postal
-setwd("~/Desktop/Datos/CP/nuevo_cp_cdmx")
-cp <- readOGR("cp_09cdmx_v8_1.shp", layer=ogrListLayers("cp_09cdmx_v8_1.shp"))
+path <- paste0(getwd(), '/datos/cp_cdmx/cp_09cdmx_v8_1.shp')
+cp <- readOGR(path, layer=ogrListLayers(path))
 
 #Revisamos el contenido
 cp@data %>% View()
@@ -72,7 +72,7 @@ colnames(alc_cp) <- c("nomgeo","cp_totales")
     #¿Cómo interpretas este resultado? ¿?¿?¿?¿?¿?
 over(shape,cp) %>% View()
 
-
+# Nota: Pensar en la función over como un left join
 
 #################################################################
 #################################################################
@@ -84,8 +84,8 @@ over(shape,cp) %>% View()
 shape@data %>% View()
 
 #2.La otra es accediendo al dbf con el paquete foreign
-setwd("~/Downloads/Datos_Espaciales/Alcaldias")
-alcaldias <- read.dbf("alcaldias.dbf")
+path <- paste0(getwd(), '/datos/Alcaldias/alcaldias.dbf')
+alcaldias <- read.dbf(path)
 
 #En nuestro caso vamos a utilizar la segunda
 
@@ -104,8 +104,8 @@ alcaldias <- left_join(x = alcaldias, y = alc_cp, by = 'nomgeo')
   #Primero guardamos el nuevo dbf
   #En mi compu creo otro directorio que tiene el mismo shape pero me sirve para las pruebas
     
-    setwd("~/Downloads/Datos_Espaciales/Alcaldias_test") 
-    write.dbf(alcaldias,"alcaldias_bis.dbf")
+    path <- paste0(getwd(), '/datos/Alcaldias_test/alcaldias_bis.dbf')
+    write.dbf(alcaldias,path)
     
     #Ahora accedo manualmente al folder y cambio el nombre de los demas archivos
       #... ir a la carpeta
@@ -113,13 +113,13 @@ alcaldias <- left_join(x = alcaldias, y = alc_cp, by = 'nomgeo')
 
 #Una vez que modifique los nombres puedo volver a cargar el shapefile y los datos ya estarán actualizados
 
-shape_bis=readOGR("~/Downloads/Datos_Espaciales/Alcaldias_test/alcaldias_bis.shp", layer="alcaldias_bis")
+shape_bis=readOGR(path, layer="alcaldias_bis")
     
 shape_bis@data %>% View()
 
 #Por supuesto el nuevo dbf tambien tiene variables modificadas:
 
-nuevo_dbf <- read.dbf("alcaldias_bis.dbf")
+nuevo_dbf <- read.dbf(path)
     
      #2-Tambien lo podriamos sobreescribir con el mismo nombre para ahorrarnos el paso anterior (aunque puede ser desordenado)
     write.dbf(alcaldias,"alcaldias_bis.dbf")
@@ -140,6 +140,10 @@ m %>%
   addPolygons(stroke = FALSE, smoothFactor = 0.2, fillOpacity = 1,
               color = ~pal(cp_totales %>% as.numeric()),popup = ~as.character(nomgeo))
 
+
+# Qué pasa si se altera el orden del shape file? Tarea
+
+# Replica el ejercicio alterando el orden del archivo .dbf
 
 
 
